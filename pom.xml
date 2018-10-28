@@ -13,5 +13,7 @@
   <modules>
     <module>diff-sync-core</module>
     <module>diff-sync-json</module>
+    <module>diff-sync-text</module>
+    <module>diff-sync-demo</module>
   </modules>
 </project>

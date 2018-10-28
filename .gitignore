@@ -132,3 +132,5 @@ nbdist/
 */.settings/
 .project
 */.project
+/diff-sync-text/nbproject/
+/diff-sync-core/nbproject/

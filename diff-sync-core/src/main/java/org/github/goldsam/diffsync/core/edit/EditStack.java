@@ -1,4 +1,4 @@
-package org.github.goldsam.diffsync.core;
+package org.github.goldsam.diffsync.core.edit;
 
 import java.util.Collection;
 
@@ -18,8 +18,11 @@ public interface EditStack<P> {
   void purgeEdits(long version);
 
   /**
-   * Returns an ordered collection of edits on this stack.
-   * @return ordered collection of edits on this stack.
+   * Returns a collection of edits on this stack ordered newest to oldest.
+   * The source version of the newest edit (i.e. the first element) is returned 
+   * returned by {@link #getNewestPatchSourceVersion()}.
+   * Versions of edits are contiguous; that is, gaps in version numbers are not allowed..
+   * @return collection of edits on this stack ordered newest to oldest.
    */
   Collection<P> getPatches();
   
@@ -27,13 +30,13 @@ public interface EditStack<P> {
    * Returns the version number of the edit on the top of the stack.
    * @return version number of the edit on the top of the stack.
    */
-  long getCurrentVersion();
+  long getNewestPatchSourceVersion();
   
   /**
    * Returns the number of edits on this stack.
    * @return number of edits on this stack.
    */
-  int getSize();
+  int getPatchCount();
   
   /**
    * Removes all edits from this stack.

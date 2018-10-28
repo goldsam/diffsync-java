@@ -1,5 +1,7 @@
 package org.github.goldsam.diffsync.core;
 
+import org.github.goldsam.diffsync.core.edit.EditStack;
+
 /**
  * @param <P> Patch type.
  */

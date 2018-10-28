@@ -1,9 +1,11 @@
-package org.github.goldsam.diffsync.core;
+package org.github.goldsam.diffsync.core.edit;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import org.github.goldsam.diffsync.core.LocalContext;
+import org.github.goldsam.diffsync.core.edit.EditStack;
 
 public class MemoryEditStack<P> implements EditStack<P>{
   
@@ -37,12 +39,12 @@ public class MemoryEditStack<P> implements EditStack<P>{
   }
 
   @Override
-  public long getCurrentVersion() {
+  public long getNewestPatchSourceVersion() {
     return currentVersion;
   }
 
   @Override
-  public int getSize() {
+  public int getPatchCount() {
     return patches.size();
   }
   
@@ -51,4 +53,17 @@ public class MemoryEditStack<P> implements EditStack<P>{
     patches.clear();
     currentVersion = -1;
   }
-}
+  
+  public static class Factory<P1> implements EditStackFactory<P1> {
+    private static final Factory instance = new Factory();
+    
+    @Override
+    public EditStack<P1> createEditStack(LocalContext<?, P1> localContext) {
+      return new MemoryEditStack<>();
+    } 
+    
+    public static <T> Factory<T> getInstance() {
+      return instance;
+    }
+  }
+ }

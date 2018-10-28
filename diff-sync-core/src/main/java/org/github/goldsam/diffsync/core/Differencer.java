@@ -12,18 +12,20 @@ public interface Differencer<D, P> {
    * Computes a patch representing the difference between a 
    * current document and a reference document.
    * @param sourceDocument Source document.
-   * @param targetDocument Target document.
+   * @param destDocument Target document.
    * @return Patch representing difference between reference and current document.
    */
-  P Difference(D sourceDocument, D targetDocument);
+  P difference(D sourceDocument, D destDocument);
 
   /**
    * Applies a patch to a document to compute a new document.
    * The original document is not modified.
    * 
-   * @param soureDocument Document to patch.
+   * @param sourceDocument Document to patch.
    * @param patch Patch encapsulating document changes.
+   * @param fuzzy Allows fuzzy patching if {@literal true}; 
+   *              enforces strict patching if {@literal false}.
    * @return Target document.
    */
-  D Patch(D soureDocument, P patch);
+  D patch(D sourceDocument, P patch, boolean fuzzy) throws PatchFailedException;
 }
