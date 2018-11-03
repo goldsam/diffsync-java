@@ -1,31 +1,32 @@
 package org.github.goldsam.diffsync.core;
 
+import org.github.goldsam.diffsync.core.context.LocalContext;
+import org.github.goldsam.diffsync.core.context.SharedContext;
 import org.github.goldsam.diffsync.core.edit.MemoryEditStack;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 public class LocalContextTest {
   
-  private MemoryEditStack<Integer> es = new MemoryEditStack<>();
-  private MockLocalContextListener<Integer, Integer> lcl = new MockLocalContextListener<>();
-  private LocalContext<Integer, Integer> lc = new LocalContext<>(es, lcl);
+  private final MockContextListener<Integer, Integer> contextListener;
+  private final MockConnectionListener<Integer,Integer> connectionListener;
   
-  private SharedContextListener<Integer, Integer> scl = new MockSharedContextListener<>();
-  private SharedContext<Integer, Integer> sc = new SharedContext<>(
-    IntDifferencer.getInstance(), 
-    MemoryEditStack.Factory.getInstance(),
-    scl,
-    true);
-  
+  private final SharedContext<Integer, Integer> sharedContext;
+  private final MemoryEditStack<Integer> editStack;
+  private final LocalContext<Integer, Integer> localContext;
+ 
   public LocalContextTest() {
-    lc.setSharedContext(sc);
+    contextListener = new MockContextListener<>();
+    sharedContext = new SharedContext<>(IntDifferencer.getInstance(), contextListener, true);
+    editStack = new MemoryEditStack<>();
+    connectionListener = new MockConnectionListener<>();
+    localContext = new LocalContext<>(sharedContext, editStack, connectionListener);
   }
-
+  
   @Test
   public void testSetSharedContext() {
-    lc.initialize(0);
-    lc.update(7);
-    lc.update(3);
-    lc.update(13);
+    localContext.reset(0, 0);
+    localContext.update(7);
+    localContext.update(3);
+    localContext.update(13);
   }
 }

@@ -1,6 +1,6 @@
 package org.github.goldsam.diffsync.core.edit;
 
-import java.util.Collection;
+import java.util.List;
 
 public interface EditStack<P> {
   
@@ -12,31 +12,24 @@ public interface EditStack<P> {
   void pushEdit(P patch, long version);
   
   /**
-   * Purges all edit with a version less-than-or-equal to a given maximum (inclusive) version.
+   * Removes all edits with a version less-than-or-equal to a given maximum 
+   * (inclusive) version number.
    * @param version maximum version (inclusive) of edits to purge.
    */
-  void purgeEdits(long version);
+  void popEdits(long version);
 
   /**
-   * Returns a collection of edits on this stack ordered newest to oldest.
-   * The source version of the newest edit (i.e. the first element) is returned 
-   * returned by {@link #getNewestPatchSourceVersion()}.
-   * Versions of edits are contiguous; that is, gaps in version numbers are not allowed..
-   * @return collection of edits on this stack ordered newest to oldest.
+   * Returns a list of all edits on this stack ordered oldest 
+   * (lowest version) to newest (highest version).
+   * @return list of all edits on this stack ordered oldest to newest.
    */
-  Collection<P> getPatches();
+  List<Edit<P>> getEdits();
   
   /**
-   * Returns the version number of the edit on the top of the stack.
-   * @return version number of the edit on the top of the stack.
+   * Returns {@literal true} if this edit stack is empty.
+   * @return {@literal true} if this edit stack is empty.
    */
-  long getNewestPatchSourceVersion();
-  
-  /**
-   * Returns the number of edits on this stack.
-   * @return number of edits on this stack.
-   */
-  int getPatchCount();
+  boolean isEmpty();
   
   /**
    * Removes all edits from this stack.

@@ -2,41 +2,36 @@ package org.github.goldsam.diffsync.demo;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import javax.swing.BoxLayout;
-import javax.swing.JLabel;
+import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
+import org.github.goldsam.diffsync.core.Client;
+import org.github.goldsam.diffsync.core.ClientListener;
+import org.github.goldsam.diffsync.core.edit.Edit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ClientComponent extends JPanel {
+public class ClientComponent extends JPanel implements ClientListener<String, String>{
   
   private static final long serialVersionUID = 1L;
   
-  public ClientComponent() {
-    //super(new GridBagLayout());
+  private static final Logger logger = LoggerFactory.getLogger(ClientComponent.class);
+  
+  private final JTextArea textArea = new JTextArea();
+  private final Client<String, String> client;
+      
+  public ClientComponent(Client<String, String> client) {
     super(new BorderLayout());
     
+    this.client = client;
+   
     setBackground(Color.red);
-    
-    JTextArea textArea = new JTextArea();
-    
-    //textArea.setFont(textArea.getFont().deriveFont(20));
-//    GridBagConstraints c = new GridBagConstraints();
-//    c.gridx = 0;
-//    c.gridy = 0;
-//    c.gridheight = 1;
-//    c.gridwidth = 1;
-//    
-//    add(textArea, c);
-    //add(textArea);
-    
     JScrollPane scroll = new JScrollPane(textArea);
     add(scroll, BorderLayout.CENTER);
     
@@ -61,11 +56,25 @@ public class ClientComponent extends JPanel {
         String documentText;
         try {
           documentText = document.getText(0, document.getLength());
+          client.update(documentText);
         } catch(BadLocationException ex) {
           throw new RuntimeException("Unable to get document teext.", ex);
-=        }
+        }
       }
     });
-    
+  }
+
+  @Override
+  public void onDocumentUpdated(String document, long localVersion) {
+    SwingUtilities.invokeLater(() -> {
+      textArea.setText(document);
+    });      
+  }
+
+  @Override
+  public void onEditsProcessed(String document, List<Edit<String>> edits, long remoteVersion) {
+    SwingUtilities.invokeLater(() -> {
+      textArea.setText(document);
+    });
   }
 }

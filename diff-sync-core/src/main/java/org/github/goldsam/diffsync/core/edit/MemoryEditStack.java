@@ -1,64 +1,52 @@
 package org.github.goldsam.diffsync.core.edit;
 
 import java.util.ArrayDeque;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.Deque;
-import org.github.goldsam.diffsync.core.LocalContext;
-import org.github.goldsam.diffsync.core.edit.EditStack;
+import java.util.List;
 
 public class MemoryEditStack<P> implements EditStack<P>{
   
-  private final Deque<P> patches = new ArrayDeque<>();
-  private long currentVersion = -1;
+  private final Deque<Edit<P>> edits = new ArrayDeque<>();
 
   @Override
   public void pushEdit(P patch, long version) {
-    if (version == (currentVersion + 1) || currentVersion < 0) {
-      patches.push(patch);
-      currentVersion = version;
+    if (!edits.isEmpty() && (edits.peekFirst().getVersion() + 1) != version) {
+      throw new IllegalArgumentException(String.format(
+        "Version %d did not match expected version %d.",
+        edits.peekFirst().getVersion() + 1,
+        version));
+    }
+    edits.push(new ImmutableEdit<>(patch, version));
+  }
+ 
+  @Override
+  public void popEdits(long version) {
+    while (!edits.isEmpty() && version <= edits.peekLast().getVersion()) {
+      edits.removeLast();
     }
   }
 
   @Override
-  public void purgeEdits(long version) {
-    if (version < 0) {
-      throw new IllegalArgumentException("Edit version number cannot be negative.");
-    }
-    
-    if (currentVersion >= 0 && version <= currentVersion && !patches.isEmpty()) {
-      for (long i = version - (currentVersion - patches.size()); i > 0; i--) {
-        patches.removeLast();
-      }
-    }
+  public List<Edit<P>> getEdits() {
+    return new ArrayList<>(edits);
   }
 
   @Override
-  public Collection<P> getPatches() {
-    return Collections.unmodifiableCollection(patches);
-  }
-
-  @Override
-  public long getNewestPatchSourceVersion() {
-    return currentVersion;
-  }
-
-  @Override
-  public int getPatchCount() {
-    return patches.size();
+  public boolean isEmpty() {
+    return edits.isEmpty();
   }
   
   @Override
   public void clear() {
-    patches.clear();
-    currentVersion = -1;
+    edits.clear();
   }
   
-  public static class Factory<P1> implements EditStackFactory<P1> {
+  public static class Factory<T> implements EditStackFactory<T> {
     private static final Factory instance = new Factory();
     
     @Override
-    public EditStack<P1> createEditStack(LocalContext<?, P1> localContext) {
+    public EditStack<T> createEditStack() {
       return new MemoryEditStack<>();
     } 
     

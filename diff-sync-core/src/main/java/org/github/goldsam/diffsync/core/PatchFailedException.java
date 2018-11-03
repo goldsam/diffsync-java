@@ -2,7 +2,6 @@ package org.github.goldsam.diffsync.core;
 
 /**
  *
- * @author samgo
  */
 public class PatchFailedException extends Exception {
 

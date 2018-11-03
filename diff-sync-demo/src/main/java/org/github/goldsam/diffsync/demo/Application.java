@@ -5,24 +5,36 @@
  */
 package org.github.goldsam.diffsync.demo;
 
-import java.awt.BorderLayout;
-import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.ContainerAdapter;
-import java.awt.event.WindowAdapter;
 import javax.swing.JFrame;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.UIManager;
+import org.github.goldsam.diffsync.core.Client;
+import org.github.goldsam.diffsync.core.Connectable;
+import org.github.goldsam.diffsync.core.edit.MemoryEditStack;
+import org.github.goldsam.diffsync.core.Host;
+import org.github.goldsam.diffsync.text.TextDifferencer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Application {
+  private static final Logger logger = LoggerFactory.getLogger(Application.class);
+  
+  private Host<String, String> host = new Host<>(new TextDifferencer(), MemoryEditStack.Factory.getInstance());
+  
+  private final NetworkConnectionSimulator ncs1;
+  private final NetworkConnectionSimulator ncs2;
+  
+  private Timer timer; 
 
-  /**
-   * Create the GUI and show it. For thread safety, this method should be
-   * invoked from the event-dispatching thread.
-   */
-  private static void createAndShowGUI() {
+  public Application() {
+    host.reset("");
+    
     UIManager.getDefaults().put(
       "TextArea.font", 
       UIManager.getFont("TextField.font").deriveFont(22f));
@@ -39,12 +51,25 @@ public class Application {
     JFrame frame = new JFrame("HelloWorldSwing");
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     
-    JSplitPane splitPane = new JSplitPane(
-        JSplitPane.HORIZONTAL_SPLIT,
-        new ClientComponent(),
-        new ClientComponent());
-    frame.getContentPane().add(splitPane);
+    Client<String, String> c1 = new Client<>(new TextDifferencer(), MemoryEditStack.Factory.getInstance(), false);
+    ClientComponent cc1 = new ClientComponent(c1);
+    c1.addClientListener(cc1);
+      
+    Client<String, String> c2 = new Client<>(new TextDifferencer(), MemoryEditStack.Factory.getInstance(), false);
+    ClientComponent cc2 = new ClientComponent(c2);
+    c2.addClientListener(cc2);
     
+    ncs1 = createSimulatedConnection(host, c1);
+    ncs2 = createSimulatedConnection(host, c2);
+      
+    JSplitPane splitPane = new JSplitPane(
+      JSplitPane.HORIZONTAL_SPLIT,
+      cc1, cc2);
+    
+    
+    c1.reset();
+    c2.reset();
+    frame.getContentPane().add(splitPane);
     frame.addComponentListener(new ComponentAdapter() {
       @Override
       public void componentShown(ComponentEvent e) {
@@ -59,13 +84,46 @@ public class Application {
     frame.pack();
     frame.setSize(800, 600);
     frame.setVisible(true);
+    
+//    scheduleUpdate();
   }
-
+  
+  private NetworkConnectionSimulator<String, String> createSimulatedConnection(Connectable<String, String> c1, Connectable<String, String> c2) {
+    NetworkConnectionSimulator<String, String> ncs = new NetworkConnectionSimulator<>(c1, c2);
+    try {
+      ncs.connect();
+      return ncs;
+    } catch(Exception e) {
+      throw new RuntimeException("Unable to create simulated network connection");
+    }
+  }
+  
+//  private void scheduleUpdate() {
+//    timer = new Timer(1000, new ActionListener() {
+//      @Override
+//      public void actionPerformed(ActionEvent e) {
+//        
+//      }
+//    });
+//    
+//    timer.setRepeats(true);
+//    timer.start();
+//  }
+  
+//  private void stop() {
+//  
+//  }
+  
+  
   public static void main(String[] args) {
-    javax.swing.SwingUtilities.invokeLater(new Runnable() {
-      public void run() {
-        createAndShowGUI();
-      }
-    });
+    try {
+      javax.swing.SwingUtilities.invokeLater(new Runnable() {
+        public void run() {
+          new Application();
+        }
+      });
+    } catch (Exception e) {
+      logger.error("Application error", e);
+    }
   }
 }

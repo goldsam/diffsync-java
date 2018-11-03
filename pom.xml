@@ -7,7 +7,14 @@
   <packaging>pom</packaging>
   
   <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <slf4j.version>1.7.25</slf4j.version>
+    <junit.version>4.12</junit.version>
   </properties>
     
   <modules>
@@ -16,4 +23,17 @@
     <module>diff-sync-text</module>
     <module>diff-sync-demo</module>
   </modules>
+  
+  <dependencyManagement>
+    <dependencies>
+      
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+  
+    </dependencies>
+  </dependencyManagement>
+      
 </project>

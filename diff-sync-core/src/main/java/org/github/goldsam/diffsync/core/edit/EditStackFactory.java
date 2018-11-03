@@ -1,11 +1,9 @@
 package org.github.goldsam.diffsync.core.edit;
 
-import org.github.goldsam.diffsync.core.LocalContext;
-import org.github.goldsam.diffsync.core.edit.EditStack;
-
 /**
  * @param <P> Patch type.
  */
+@FunctionalInterface
 public interface EditStackFactory<P> {
-  EditStack<P> createEditStack(LocalContext<?, P> localContext);
+  EditStack<P> createEditStack();
 }
