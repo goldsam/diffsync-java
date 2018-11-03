@@ -11,19 +11,19 @@ public class MemoryEditStack<P> implements EditStack<P>{
 
   @Override
   public void pushEdit(P patch, long version) {
-    if (!edits.isEmpty() && (edits.peekFirst().getVersion() + 1) != version) {
+    if (!edits.isEmpty() && (edits.peekLast().getVersion() + 1) != version) {
       throw new IllegalArgumentException(String.format(
         "Version %d did not match expected version %d.",
-        edits.peekFirst().getVersion() + 1,
+        edits.peekLast().getVersion() + 1,
         version));
     }
-    edits.push(new ImmutableEdit<>(patch, version));
+    edits.addLast(new ImmutableEdit<>(patch, version));
   }
  
   @Override
   public void popEdits(long version) {
-    while (!edits.isEmpty() && version <= edits.peekLast().getVersion()) {
-      edits.removeLast();
+    while (!edits.isEmpty() && version <= edits.peekFirst().getVersion()) {
+      edits.removeFirst();
     }
   }
 

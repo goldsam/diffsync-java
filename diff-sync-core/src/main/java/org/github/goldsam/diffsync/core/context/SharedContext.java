@@ -12,11 +12,6 @@ public class SharedContext<D, P> {
   private final Differencer<D, P> differencer;
   private final ContextListener<D, P> listener;
   private final boolean usingShadowBackups;
- 
-  public boolean isUsingShadowBackups() {
-    return usingShadowBackups;
-  }
-    
   private D document;
   
   public SharedContext(Differencer<D, P> differencer, ContextListener<D, P> listener, boolean usingShadowBackups) {
@@ -25,10 +20,18 @@ public class SharedContext<D, P> {
     this.usingShadowBackups = usingShadowBackups;
   }
   
+  public SharedContext(Differencer<D, P> differencer, ContextListener<D, P> listener, boolean usingShadowBackups, D document) {
+    this(differencer, listener, usingShadowBackups);
+    this.document = document;  
+  }
+  
   public Differencer<D, P> getDifferencer() {
     return differencer;
   }
-    
+  
+  public boolean isUsingShadowBackups() {
+    return usingShadowBackups;
+  }  
   public D getDocument() {
     return document;
   }
@@ -36,28 +39,6 @@ public class SharedContext<D, P> {
   public void setDocument(D document) {
     this.document = document;
   }
-  
-//  public void onEditProcessed(
-//    Synchronizer<D, P> processedContext, 
-//    boolean editApplied,
-//    P patch, 
-//    long patchRemoteVersion, 
-//    long lastReceivedRemoteVersion) 
-//  {
-//    if (editApplied) {
-//      for(Synchronizer<D, P> localContext : localContexts) {
-//        localContext.update();
-//      }
-//    } else {
-//      processedContext.update();
-//    }
-//    
-//    listener.onEditProcessed(processedContext, editApplied, patch, patchRemoteVersion, lastReceivedRemoteVersion);
-//  }
-  
-//  public EditStack<P> createEditStack(Synchronizer<D, P> localContext) {
-//    return editStackFactory.createEditStack(localContext);
-//  }
  
   public void onDocumentReset(LocalContext<D, P> localContext) {
     listener.onDocumentReset(localContext);

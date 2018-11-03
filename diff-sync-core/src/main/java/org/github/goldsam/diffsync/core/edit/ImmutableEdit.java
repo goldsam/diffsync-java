@@ -1,5 +1,7 @@
 package org.github.goldsam.diffsync.core.edit;
 
+import java.util.Objects;
+
 public class ImmutableEdit<P> implements Edit<P> {
 
   private final P patch;
@@ -19,4 +21,35 @@ public class ImmutableEdit<P> implements Edit<P> {
   public long getVersion() {
     return version;
   }
+
+  @Override
+  public int hashCode() {
+    int hash = 5;
+    hash = 23 * hash + Objects.hashCode(this.patch);
+    hash = 23 * hash + (int) (this.version ^ (this.version >>> 32));
+    return hash;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    final ImmutableEdit<?> other = (ImmutableEdit<?>) obj;
+    if (!Objects.equals(this.patch, other.patch)) {
+      return false;
+    }
+    return true;
+  }
+
+  @Override
+  public String toString() {
+    return "ImmutableEdit{" + "patch=" + patch + ", version=" + version + '}';
+  } 
 }

@@ -51,6 +51,10 @@ public class LocalContext<D, P> {
     return localVersion;
   }
   
+  public D getDocument() {
+    return sharedContext.getDocument();
+  }
+  
   public void reset(D document, long version) {
     validateDocument(document);
     sharedContext.setDocument(document);
@@ -92,8 +96,12 @@ public class LocalContext<D, P> {
   
   private void updateImpl(D document) {
     if (sharedContext.getDocument() == null) {
-      throw new RuntimeException("Document not initialized.");
-    }    
+      throw new IllegalStateException("Document not initialized.");
+    }
+    
+    if (shadow == null) {
+      throw new IllegalStateException("Local context not initialized.");
+    }
     
     P patch = getDifferencer().difference(shadow, document);    
     editStack.pushEdit(patch, localVersion);
