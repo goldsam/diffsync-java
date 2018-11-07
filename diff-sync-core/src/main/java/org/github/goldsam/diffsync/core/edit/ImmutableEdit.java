@@ -42,10 +42,7 @@ public class ImmutableEdit<P> implements Edit<P> {
       return false;
     }
     final ImmutableEdit<?> other = (ImmutableEdit<?>) obj;
-    if (!Objects.equals(this.patch, other.patch)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(this.patch, other.patch);
   }
 
   @Override

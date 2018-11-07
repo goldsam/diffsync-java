@@ -1,5 +1,7 @@
 package org.github.goldsam.diffsync.core.context;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import org.github.goldsam.diffsync.core.ConnectionListener;
@@ -49,6 +51,10 @@ public class LocalContext<D, P> {
 
   public long getLocalVersion() {
     return localVersion;
+  }
+  
+  public D getShadow() {
+    return shadow;
   }
   
   public D getDocument() {
@@ -121,38 +127,35 @@ public class LocalContext<D, P> {
     sharedContext.validateDocument(this, document);
   }
   
-  public void processEdits(List<Edit<P>> edits, long lastReceivedRemoteVersion) throws PatchFailedException {
-    edits.sort(EditUtils.getVersionComparator());
-    
-    if (!edits.isEmpty()) { 
-      for(Edit<P> edit : edits) {
-        if (!processEdit(edit, lastReceivedRemoteVersion)) {
-          edits = edits.subList(0, edits.indexOf(edit));
-          break;
-        }
+  public boolean processEdits(List<Edit<P>> edits, long lastReceivedRemoteVersion) throws PatchFailedException {
+    ArrayList<Edit<P>> processedEdits = new ArrayList<>();
+    for (Edit<P> edit : edits) {
+      if (processEdit(edit, lastReceivedRemoteVersion)) {
+        processedEdits.add(edit);
       }
-    
-      sharedContext.onEditsProcessed(this, edits);
-    } else {
-      editStack.popEdits(lastReceivedRemoteVersion);
     }
+    
+    if (!processedEdits.isEmpty()) {
+      sharedContext.onEditsProcessed(this, edits);
+      return true;
+    }
+    
+    return false;
   }
   
   private boolean processEdit(Edit<P> edit, long lastReceivedRemoteVersion) throws PatchFailedException {   
-    boolean editApplied = false;
-    if (lastReceivedRemoteVersion == localVersion && edit.getVersion() == remoteVersion) {
-//    if (lastReceivedRemoteVersion == remoteVersion && edit.getVersion() == localVersion) {
-      editApplied = tryApplyEdit(edit, lastReceivedRemoteVersion);
+    if (tryApplyEdit(edit, lastReceivedRemoteVersion)) {
+      return true;
     } else if (lastReceivedRemoteVersion < remoteVersion) {
       // duplicate message received.
-    } else if (lastReceivedRemoteVersion == backupVersion && edit.getVersion() == remoteVersion) {
+    } else if (lastReceivedRemoteVersion == backupVersion) {
       shadow = backup;
       localVersion = backupVersion;
       editStack.clear();
-      editApplied = tryApplyEdit(edit, lastReceivedRemoteVersion);
-    } 
-  
-    return editApplied;
+      return tryApplyEdit(edit, lastReceivedRemoteVersion);
+    }
+    
+    return false;
   }
   
   /**
@@ -165,6 +168,10 @@ public class LocalContext<D, P> {
    * @throws PatchFailedException 
    */
   private boolean tryApplyEdit(Edit<P> edit, long lastReceivedRemoteVersion) throws PatchFailedException {
+    if (lastReceivedRemoteVersion != localVersion || edit.getVersion() != remoteVersion) {
+      return false;
+    }
+  
     Differencer<D, P> differencer = getDifferencer();
     D newShadowDocument = differencer.patch(shadow, edit.getPatch(), false);
     validateDocument(newShadowDocument);

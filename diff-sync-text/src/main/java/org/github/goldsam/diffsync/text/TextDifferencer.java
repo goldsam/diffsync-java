@@ -25,6 +25,7 @@ public class TextDifferencer implements Differencer<String, String> {
   @Override
   public String patch(String sourceDocument, String patch, boolean fuzzy) throws PatchFailedException {
     LinkedList<diff_match_patch.Patch> patches = diffMatchPatch.patch_fromText(patch);
+   
     Object[] appliedPatch = diffMatchPatch.patch_apply(patches, sourceDocument);
     if (!fuzzy && anyFalse((boolean[])appliedPatch[1])) {
       throw new PatchFailedException("Unable to apply strict text patch.");

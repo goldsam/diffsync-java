@@ -5,6 +5,7 @@ import org.github.goldsam.diffsync.core.context.ContextListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.github.goldsam.diffsync.core.edit.Edit;
 
 public class MockContextListener<D, P> implements ContextListener<D, P> {
@@ -57,6 +58,40 @@ public class MockContextListener<D, P> implements ContextListener<D, P> {
 
     public long getRemoteVersion() {
       return remoteVersion;
+    }
+
+    @Override
+    public int hashCode() {
+      int hash = 7;
+      hash = 19 * hash + Objects.hashCode(this.localContext);
+      hash = 19 * hash + Objects.hashCode(this.edits);
+      hash = 19 * hash + Objects.hashCode(this.document);
+      hash = 19 * hash + (int) (this.remoteVersion ^ (this.remoteVersion >>> 32));
+      return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+      final ProcessedEdit<?, ?> other = (ProcessedEdit<?, ?>) obj; 
+      return Objects.equals(document, other.document)
+        && edits.containsAll(other.edits) 
+        && other.edits.containsAll(edits)
+        && localContext == other.localContext
+        && remoteVersion == other.remoteVersion;
+    }
+
+    @Override
+    public String toString() {
+      return "ProcessedEdit{" + "localContext=" + localContext + ", edits=" + edits + ", document=" + document + ", remoteVersion=" + remoteVersion + '}';
     }
   }
   

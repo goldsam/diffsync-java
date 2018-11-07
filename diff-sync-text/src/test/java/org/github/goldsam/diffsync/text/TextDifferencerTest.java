@@ -4,10 +4,6 @@ import org.github.goldsam.diffsync.core.PatchFailedException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-/**
- *
- * @author samgo
- */
 public class TextDifferencerTest {
   
   TextDifferencer differencer = new TextDifferencer();
@@ -25,6 +21,6 @@ public class TextDifferencerTest {
   @Test(expected = PatchFailedException.class)
   public void testThrowsPathFailedExceptionOnConflictWith() throws PatchFailedException { 
     String diff = differencer.difference(INITIAL_TEXT, FINAL_TEXT);
-    differencer.patch("Nothing like the original text", diff, false);
+    differencer.patch("garbage in", diff, false);
   }
 }

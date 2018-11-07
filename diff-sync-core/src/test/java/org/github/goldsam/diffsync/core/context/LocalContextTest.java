@@ -1,18 +1,14 @@
 package org.github.goldsam.diffsync.core.context;
 
 import java.util.Arrays;
-import java.util.List;
-import org.github.goldsam.diffsync.core.ConnectionListener;
 import org.github.goldsam.diffsync.core.IntDifferencer;
 import org.github.goldsam.diffsync.core.MockConnectionListener;
 import org.github.goldsam.diffsync.core.MockContextListener;
-import org.github.goldsam.diffsync.core.edit.Edit;
+import org.github.goldsam.diffsync.core.PatchFailedException;
 import org.github.goldsam.diffsync.core.edit.ImmutableEdit;
 import org.github.goldsam.diffsync.core.edit.MemoryEditStack;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 public class LocalContextTest {
   
@@ -97,7 +93,7 @@ public class LocalContextTest {
     assertEquals(localContext.getLocalVersion(), 1);
 
     localContext.update(-5);
-    assertEquals(localContext.getLocalVersion(), 2);    
+    assertEquals(localContext.getLocalVersion(), 2);
   }
  
   @Test
@@ -108,7 +104,7 @@ public class LocalContextTest {
     assertEquals(localContext.getRemoteVersion(), 0);
 
     localContext.update(-5);
-    assertEquals(localContext.getRemoteVersion(), 0);    
+    assertEquals(localContext.getRemoteVersion(), 0);
   }
   
   @Test
@@ -135,117 +131,104 @@ public class LocalContextTest {
       Arrays.asList(new ImmutableEdit<>(6, 0), new ImmutableEdit<>(-11, 1)),
       localContext.getEdits());
   }
- 
-//  
+  
+  @Test
+  public void applyingEditsFromTheFutureDoesNothing() throws PatchFailedException {
+    initializeAndReset();
+    localContext.update(6);
+    localContext.update(-5);
+   
+    localContext.processEdits(Arrays.asList(new ImmutableEdit<>(-3, 5L)), 0L);
+    assertEquals(
+      Arrays.asList(new ImmutableEdit<>(6, 0), new ImmutableEdit<>(-11, 1)),
+      localContext.getEdits());
+    assertEquals(localContext.getLocalVersion(), 2);
+    assertEquals(localContext.getRemoteVersion(), 0);
+  }
+  
 //  @Test
-//  public void updateShouldSetTheCurrentDocuent() {
-//    initialize(true);;
-//    
-//    localContext.update(6);
-//    assertEquals(Long.valueOf(6), localContext.getDocument());
-//
-//    localContext.update(-5);
-//    assertEquals(Long.valueOf(-5), localContext.getDocument());
-//  }
-
-//  @Test
-//  public void testGetSharedContext() {
-//    System.out.println("getSharedContext");
-//    LocalContext instance = null;
-//    SharedContext expResult = null;
-//    SharedContext result = instance.getSharedContext();
-//    assertEquals(expResult, result);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testGetConnectionListener() {
-//    System.out.println("getConnectionListener");
-//    LocalContext instance = null;
-//    ConnectionListener expResult = null;
-//    ConnectionListener result = instance.getConnectionListener();
-//    assertEquals(expResult, result);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testGetRemoteVersion() {
-//    System.out.println("getRemoteVersion");
-//    LocalContext instance = null;
-//    long expResult = 0L;
-//    long result = instance.getRemoteVersion();
-//    assertEquals(expResult, result);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testGetLocalVersion() {
-//    System.out.println("getLocalVersion");
-//    LocalContext instance = null;
-//    long expResult = 0L;
-//    long result = instance.getLocalVersion();
-//    assertEquals(expResult, result);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testReset_GenericType_long() {
-//    System.out.println("reset");
-//    Object document = null;
-//    long version = 0L;
-//    LocalContext instance = null;
-//    instance.reset(document, version);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testReset_long() {
-//    System.out.println("reset");
-//    long version = 0L;
-//    LocalContext instance = null;
-//    instance.reset(version);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testReset_0args() {
-//    System.out.println("reset");
-//    LocalContext instance = null;
-//    instance.reset();
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testUpdate_0args() {
-//    System.out.println("update");
-//    LocalContext instance = null;
-//    instance.update();
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testUpdate_GenericType() {
-//    System.out.println("update");
-//    Object newCurrentDocument = null;
-//    LocalContext instance = null;
-//    instance.update(newCurrentDocument);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testUpdate_Function() {
-//    System.out.println("update");
-//    LocalContext instance = null;
-//    instance.update(null);
-//    fail("The test case is a prototype.");
-//  }
-//
-//  @Test
-//  public void testProcessEdits() throws Exception {
-//    System.out.println("processEdits");
-//    LocalContext instance = null;
-//    instance.processEdits(null);
-//    fail("The test case is a prototype.");
+//  public void applyingEditMatchingRemoteAndLocalVersion_popsCorrespondingEditFromEditStack() throws PatchFailedException { 
+//    initializeAndReset();
+////    localContext.update(6);
+//   
+//    localContext.processEdits(Arrays.asList(new ImmutableEdit<>(6, 0)), 0L);
+////    assertTrue("edit stack is empty", localContext.getEdits().isEmpty());
 //  }
   
+  @Test
+  public void applyingEditsMatchingRemoteAndLocalVersion_updatesDocumentAndCurrentShadow() throws PatchFailedException { 
+    initializeAndReset();
+   
+    localContext.processEdits(
+      Arrays.asList(
+        new ImmutableEdit<>(6, 0),
+        new ImmutableEdit<>(-11, 1)), 
+      0L);
+    assertEquals(
+      Integer.valueOf(-5),
+      localContext.getDocument());    
+  }
+  
+  @Test
+  public void applyingEditMatchingRemoteAndLocalVersion_updatesRemoteVersion() throws PatchFailedException { 
+    initializeAndReset();
+   
+    localContext.processEdits(
+      Arrays.asList(
+        new ImmutableEdit<>(6, 0),
+        new ImmutableEdit<>(-11, 1)), 
+      0L);
+    assertEquals(2, localContext.getRemoteVersion());    
+  }
+  
+  @Test
+  public void applyingEditMatchingRemoteAndLocalVersion_firesEditsAppliedEvent() throws PatchFailedException { 
+    initializeAndReset();
+
+    localContext.processEdits(
+      Arrays.asList(
+        new ImmutableEdit<>(6, 0),
+        new ImmutableEdit<>(-11, 1)), 
+      0L);
+
+    assertEquals(
+      Arrays.asList(
+        new MockContextListener.ProcessedEdit<>(
+          localContext,
+          Arrays.asList(
+            new ImmutableEdit<>(6, 0),
+            new ImmutableEdit<>(-11, 1)), 
+          -5,
+          2L)),
+      contextListener.getProcessedEdits());
+  }
+  
+  @Test
+  public void applyingEditsAfterLostReturnAck() throws PatchFailedException { 
+    initializeAndReset();
+    
+    localContext.processEdits(
+      Arrays.asList(
+        new ImmutableEdit<>(6, 0)), 
+      0L);
+    
+    localContext.update(8);
+    
+    localContext.processEdits(
+      Arrays.asList(
+        new ImmutableEdit<>(6, 0),
+        new ImmutableEdit<>(-11, 1)), 
+      0L);
+//
+//    assertEquals(
+//      Arrays.asList(
+//        new MockContextListener.ProcessedEdit<>(
+//          localContext,
+//          Arrays.asList(
+//            new ImmutableEdit<>(6, 0),
+//            new ImmutableEdit<>(-11, 1)), 
+//          -5,
+//          2L)),
+//      contextListener.getProcessedEdits());
+  }
 }
