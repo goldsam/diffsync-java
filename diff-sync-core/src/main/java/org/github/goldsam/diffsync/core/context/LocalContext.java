@@ -1,7 +1,6 @@
 package org.github.goldsam.diffsync.core.context;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import org.github.goldsam.diffsync.core.ConnectionListener;
@@ -9,23 +8,26 @@ import org.github.goldsam.diffsync.core.Differencer;
 import org.github.goldsam.diffsync.core.PatchFailedException;
 import org.github.goldsam.diffsync.core.edit.Edit;
 import org.github.goldsam.diffsync.core.edit.EditStack;
-import org.github.goldsam.diffsync.core.edit.EditUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @param <D> Document type.
  * @param <P> Patch type.
  */
 public class LocalContext<D, P> {
+  private static final Logger log = LoggerFactory.getLogger(LocalContext.class);
+  
   private final SharedContext<D, P> sharedContext;
   private final EditStack<P> editStack;
   private final ConnectionListener<D, P> connectionListener;
 
-  private D shadow;
-  private long remoteVersion = -1L; // n (from server pov)
-  private long localVersion = -1L; // m (from server pov)
+  private D shadowDocument;
+  private long remoteShadowVersion = -1L; // n (from server pov)
+  private long localShadowVersion = -1L; // m (from server pov)
   
-  private D backup;
-  private long backupVersion = -1L; // m (from server pov)
+  private D shadowBackupDocument;
+  private long localShadowBackupVersion = -1L; // m (from server pov)
   
   public LocalContext(SharedContext<D, P> sharedContext, EditStack<P> editStack, ConnectionListener<D, P> connectionListener) {
     this.sharedContext = sharedContext;
@@ -45,16 +47,16 @@ public class LocalContext<D, P> {
     return connectionListener;
   }
 
-  public long getRemoteVersion() {
-    return remoteVersion;
+  public long getRemoteShadowVersion() {
+    return remoteShadowVersion;
   }
 
-  public long getLocalVersion() {
-    return localVersion;
+  public long getLocalShadowVersion() {
+    return localShadowVersion;
   }
   
-  public D getShadow() {
-    return shadow;
+  public D getShadowDocument() {
+    return shadowDocument;
   }
   
   public D getDocument() {
@@ -72,19 +74,19 @@ public class LocalContext<D, P> {
   }
   
   public void reset() {
-    reset(localVersion + 1);
+    reset(localShadowVersion + 1);
   }
   
   private void resetImpl(D document, long version) {
-    shadow = document;
-    localVersion = version;
-    remoteVersion = version;
+    shadowDocument = document;
+    localShadowVersion = version;
+    remoteShadowVersion = version;
 
-    backup = null;
-    backupVersion = -1L;
+    shadowBackupDocument = null;
+    localShadowBackupVersion = -1L;
     
     editStack.clear();
-    sharedContext.onDocumentReset(this);
+    sharedContext.getListener().onDocumentReset(this);
   }
   
   public void update() {
@@ -102,21 +104,21 @@ public class LocalContext<D, P> {
   
   private void updateImpl(D document) {
     if (sharedContext.getDocument() == null) {
-      throw new IllegalStateException("Document not initialized.");
+      throw new IllegalStateException("Document not set on shared context.");
     }
     
-    if (shadow == null) {
-      throw new IllegalStateException("Local context not initialized.");
+    if (shadowDocument == null) {
+      throw new IllegalStateException("Shadow document not set on locsl context.");
     }
     
-    P patch = getDifferencer().difference(shadow, document);    
-    editStack.pushEdit(patch, localVersion);
+    P patch = getDifferencer().difference(shadowDocument, document);    
+    editStack.pushEdit(patch, localShadowVersion);
 
-    shadow = document;
-    localVersion++;
+    shadowDocument = document;
+    localShadowVersion++;
     
     sharedContext.setDocument(document);
-    sharedContext.onDocumentUpdated(this);
+    sharedContext.getListener().onDocumentUpdated(this);
   }
   
   protected Differencer<D, P> getDifferencer() {
@@ -124,76 +126,58 @@ public class LocalContext<D, P> {
   }
   
   void validateDocument(D document) {
-    sharedContext.validateDocument(this, document);
+    // TODO: Implement document validation support.
   }
   
-  public boolean processEdits(List<Edit<P>> edits, long lastReceivedRemoteVersion) throws PatchFailedException {
-    ArrayList<Edit<P>> processedEdits = new ArrayList<>();
-    for (Edit<P> edit : edits) {
-      if (processEdit(edit, lastReceivedRemoteVersion)) {
-        processedEdits.add(edit);
-      }
-    }
-    
-    if (!processedEdits.isEmpty()) {
-      sharedContext.onEditsProcessed(this, edits);
-      return true;
-    }
-    
-    return false;
-  }
-  
-  private boolean processEdit(Edit<P> edit, long lastReceivedRemoteVersion) throws PatchFailedException {   
-    if (tryApplyEdit(edit, lastReceivedRemoteVersion)) {
-      return true;
-    } else if (lastReceivedRemoteVersion < remoteVersion) {
-      // duplicate message received.
-    } else if (lastReceivedRemoteVersion == backupVersion) {
-      shadow = backup;
-      localVersion = backupVersion;
+  public void processEdits(List<Edit<P>> edits, long ackedLocalVersion) throws PatchFailedException {
+    if (ackedLocalVersion != localShadowVersion && ackedLocalVersion == localShadowBackupVersion) {
+      // Remote did not receive the last response - rollback shadow
+      log.warn("Rollback from shadow {} to backup shadow {}", localShadowVersion, localShadowBackupVersion);
+      shadowDocument = shadowBackupDocument;
+      localShadowVersion = localShadowBackupVersion;
       editStack.clear();
-      return tryApplyEdit(edit, lastReceivedRemoteVersion);
+      sharedContext.getListener().onShadowRollback(this, ackedLocalVersion);
+    } else {
+      editStack.popEdits(ackedLocalVersion);
     }
     
-    return false;
+    for (Edit<P> edit : edits) {
+      processEdit(edit, ackedLocalVersion);
+    }
   }
   
-  /**
-   * Attempts to apply a batch to shared and shadow documents. 
-   * @param edit Edit to apply.
-   * @param patchRemoteVersion Remote document version the patch was created from.
-   * @param lastReceivedRemoteVersion
-   * @return {@literal true} if the shadow was successfully patched; 
-   *         {@literal false} if a conflict occurred while patch 
-   * @throws PatchFailedException 
-   */
-  private boolean tryApplyEdit(Edit<P> edit, long lastReceivedRemoteVersion) throws PatchFailedException {
-    if (lastReceivedRemoteVersion != localVersion || edit.getVersion() != remoteVersion) {
-      return false;
+  private void processEdit(Edit<P> edit, long ackedLocalVersion) throws PatchFailedException {
+    if (ackedLocalVersion != localShadowVersion) {
+      // Can't apply an edit on a mismatched shadow version.
+      log.warn("Acknowledged version mismatch: local version = {}, acked version = {}", localShadowVersion, ackedLocalVersion);
+      sharedContext.getListener().onEditIgnored(this, edit, ackedLocalVersion, EditIgnoredReason.ACK_VERSION_MISMATCH);
+    } else if (edit.getVersion() > remoteShadowVersion) {
+      // Client has a version in the future?
+      log.warn("Cannot apply edit out of order: edit version = {}, expected version = {}", edit.getVersion(), remoteShadowVersion);
+      sharedContext.getListener().onEditIgnored(this, edit, ackedLocalVersion, EditIgnoredReason.OUT_OF_ORDER); 
+    } else if (edit.getVersion() < remoteShadowVersion) {
+      // We've already seen this edit.
+      log.debug("Ignoring previously applied edit: edit version = {}, expected version = {}", edit.getVersion(), remoteShadowVersion);
+      sharedContext.getListener().onEditIgnored(this, edit, ackedLocalVersion, EditIgnoredReason.ALREADY_APPLIED);
+    } else {
+      boolean collision = false;
+      Differencer<D, P> differencer = getDifferencer();
+      D newShadowDocument = differencer.patch(shadowDocument, edit.getPatch(), false);
+      validateDocument(newShadowDocument);
+      try {
+        D newCurrentDocument = differencer.patch(sharedContext.getDocument(), edit.getPatch(), true);
+        sharedContext.setDocument(newCurrentDocument);
+        log.debug("Successfully applied edit to shared document: edit version = {}, acked version = {}", edit.getVersion(), ackedLocalVersion);
+      } catch (PatchFailedException e) {
+        log.warn("Collision while applying edit to shared document: edit version = {}, acked version = {}", edit.getVersion(), ackedLocalVersion, e);
+        collision = true;
+      }
+
+      remoteShadowVersion++;
+      shadowDocument = newShadowDocument;
+      shadowBackupDocument = newShadowDocument;
+      localShadowBackupVersion = localShadowVersion;
+      sharedContext.getListener().onEditApplied(this, edit, ackedLocalVersion, collision);
     }
-  
-    Differencer<D, P> differencer = getDifferencer();
-    D newShadowDocument = differencer.patch(shadow, edit.getPatch(), false);
-    validateDocument(newShadowDocument);
-
-    D newCurrentDocument;
-    try {
-      newCurrentDocument = differencer.patch(sharedContext.getDocument(), edit.getPatch(), true);
-    } catch (PatchFailedException e) {
-      sharedContext.handleCollision(this, edit);
-      return false;
-    }
-
-    validateDocument(newCurrentDocument);
-    sharedContext.setDocument(newCurrentDocument);
-
-    shadow = newShadowDocument;
-    remoteVersion++;
-
-    backup = newShadowDocument;
-    backupVersion = localVersion;
-
-    editStack.popEdits(lastReceivedRemoteVersion);
-    return true;
   }
 }

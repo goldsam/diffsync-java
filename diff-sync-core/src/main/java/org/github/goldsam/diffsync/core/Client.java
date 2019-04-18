@@ -3,8 +3,8 @@ package org.github.goldsam.diffsync.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.github.goldsam.diffsync.core.context.ContextListener;
+import org.github.goldsam.diffsync.core.context.EditIgnoredReason;
 import org.github.goldsam.diffsync.core.context.LocalContext;
 import org.github.goldsam.diffsync.core.context.SharedContext;
 import org.github.goldsam.diffsync.core.edit.Edit;
@@ -47,7 +47,7 @@ public class Client<D, P> implements ContextListener<D, P>, Connectable<D, P> {
     
     EditStack<P> editStack = editStackFactory.createEditStack();
     LocalContext<D, P> localContext = new LocalContext<>(sharedContext, editStack, connectionListener);
-    connection = new Connection<>(localContext, this::onConnectionClosed);
+    connection = new Connection<D, P>(localContext, this::onConnectionClosed);
     return connection;
   }
 
@@ -57,56 +57,44 @@ public class Client<D, P> implements ContextListener<D, P>, Connectable<D, P> {
 //      .onSendDocument(localContext, SendDocumentCause.DOCUMENT_RESET);
     logger.debug(
       "Document reset: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
+      localContext.getLocalShadowVersion(),
+      localContext.getRemoteShadowVersion());
   }
 
+  
   @Override
-  public void onEditsProcessed(LocalContext<D, P> localContext, List<Edit<P>> processedEdits) {
+  public void onEditApplied(LocalContext<D, P> localContext, Edit<P> edit, long ackedLocalVersion, boolean collision) {
     localContext.getConnectionListener()
       .onSendEdits(localContext, SendEditsCause.EDITS_ACKED);
-    if (logger.isDebugEnabled()) {
-      logger.debug(
-        "Edits processed: edit version = {}, local version = {}, remote version = {}",
-        processedEdits.stream()
-          .map(e -> String.valueOf(e.getVersion()))
-          .collect(Collectors.joining(",", "{", "}")),
-        localContext.getLocalVersion(),
-        localContext.getRemoteVersion());
-    }
     
     D document = localContext.getSharedContext().getDocument();
     for (ClientListener<D, P> clientListener : new ArrayList<>(clientListeners)) {
-      clientListener.onEditsProcessed(
+      clientListener.onEditProcessed(
         document, 
-        processedEdits, 
-        localContext.getRemoteVersion());
+        edit, 
+        localContext.getRemoteShadowVersion());
     }
   }
-
+  
+  @Override
+  public void onEditIgnored(LocalContext<D, P> localContext, Edit<P> edit, long ackedLocalVersion, EditIgnoredReason reason) {
+  }
+  
   @Override
   public void onDocumentUpdated(LocalContext<D, P> localContext) {
     localContext.getConnectionListener()
       .onSendEdits(localContext, SendEditsCause.DOCUMENT_UPDATED);
     logger.debug(
       "Document updated: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
+      localContext.getLocalShadowVersion(),
+      localContext.getRemoteShadowVersion());
     
     D document = localContext.getSharedContext().getDocument();
     for (ClientListener<D, P> clientListener : new ArrayList<>(clientListeners)) {
       clientListener.onDocumentUpdated(
         document, 
-        localContext.getLocalVersion());
+        localContext.getLocalShadowVersion());
     }
-  }
-
-  @Override
-  public void onCollision(LocalContext<D, P> localContext, Edit<P> collidingEdit) {
-    logger.warn(
-      "Collision: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
   }
   
   private void onConnectionClosed(Connection<D, P> connection) {
@@ -128,5 +116,9 @@ public class Client<D, P> implements ContextListener<D, P>, Connectable<D, P> {
   
   public void removeClientListener(ClientListener<D, P> clientListener) {
     clientListeners.remove(clientListener);
+  }
+
+  @Override
+  public void onShadowRollback(LocalContext<D, P> localContext, long ackedLocalVersion) {
   }
 }

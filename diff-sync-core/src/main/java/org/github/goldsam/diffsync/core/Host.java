@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.github.goldsam.diffsync.core.context.ContextListener;
+import org.github.goldsam.diffsync.core.context.EditIgnoredReason;
 import org.github.goldsam.diffsync.core.context.LocalContext;
 import org.github.goldsam.diffsync.core.context.SharedContext;
 import org.github.goldsam.diffsync.core.edit.Edit;
@@ -32,7 +33,7 @@ public class Host<D, P> implements ContextListener<D, P>, Connectable<D, P> {
   public Connection<D, P> connect(ConnectionListener<D, P> connectionListener) {
     EditStack<P> editStack = editStackFactory.createEditStack();
     LocalContext<D, P> localContext = new LocalContext<>(sharedContext, editStack, connectionListener);
-    Connection<D, P> connection = new Connection<>(localContext, this::onConnectionClosed);
+    Connection<D, P> connection = new Connection<D, P>(localContext, this::onConnectionClosed);
     connections.add(connection);
 //    connectionListener.onSendDocument(localContext, SendDocumentCause.CONNECTION_ESTABLISHED);
     return connection;
@@ -52,12 +53,12 @@ public class Host<D, P> implements ContextListener<D, P>, Connectable<D, P> {
     localContext.getConnectionListener().onSendDocument(localContext, SendDocumentCause.DOCUMENT_RESET);
     logger.debug(
       "Document reset: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
+      localContext.getLocalShadowVersion(),
+      localContext.getRemoteShadowVersion());
   }
 
   @Override
-  public void onEditsProcessed(LocalContext<D, P> localContext, List<Edit<P>> processedEdits) {
+  public void onEditApplied(LocalContext<D, P> localContext, Edit<P> edit, long ackedLocalVersion, boolean collision) {
     for(Connection<D, P> connection : connections) {
       LocalContext<D, P> connectionLocalContext = connection.getLocalContext();
       if (connectionLocalContext != localContext) {
@@ -71,12 +72,14 @@ public class Host<D, P> implements ContextListener<D, P>, Connectable<D, P> {
     if (logger.isDebugEnabled()) {
       logger.debug(
         "Edits processed: edit version = {}, local version = {}, remote version = {}",
-        processedEdits.stream()
-          .map(e -> String.valueOf(e.getVersion()))
-          .collect(Collectors.joining(",", "{", "}")),
-        localContext.getLocalVersion(),
-        localContext.getRemoteVersion());
+        edit.getVersion(),
+        localContext.getLocalShadowVersion(),
+        localContext.getRemoteShadowVersion());
     }
+  }
+  
+  @Override
+  public void onEditIgnored(LocalContext<D, P> localContext, Edit<P> edit, long ackedLocalVersion, EditIgnoredReason reason) {
   }
 
   @Override
@@ -84,15 +87,21 @@ public class Host<D, P> implements ContextListener<D, P>, Connectable<D, P> {
     localContext.getConnectionListener().onSendEdits(localContext, SendEditsCause.DOCUMENT_UPDATED);
     logger.debug(
       "Document updated: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
+      localContext.getLocalShadowVersion(),
+      localContext.getRemoteShadowVersion());
   }
 
+//  @Override
+//  public void onCollision(LocalContext<D, P> localContext, Edit<P> collidingEdit) {
+//    logger.warn(
+//      "Collision: local version = {}, remote version = {}",
+//      localContext.getLocalShadowVersion(),
+//      localContext.getRemoteShadowVersion());
+//  }
+
   @Override
-  public void onCollision(LocalContext<D, P> localContext, Edit<P> collidingEdit) {
-    logger.warn(
-      "Collision: local version = {}, remote version = {}",
-      localContext.getLocalVersion(),
-      localContext.getRemoteVersion());
+  public void onShadowRollback(LocalContext<D, P> localContext, long ackedLocalVersion) {
   }
+
+  
 }

@@ -128,9 +128,7 @@ nbdist/
 
 
 # End of https://www.gitignore.io/api/java,maven,netbeans,intellij
-.settings/
-*/.settings/
-.project
-*/.project
-/diff-sync-text/nbproject/
-/diff-sync-core/nbproject/
+**/.settings/
+**/.project
+**/.classpath
+**/nbproject/
