@@ -51,7 +51,7 @@ public class NetworkConnectionSimulator<D, P> implements ConnectionListener<D, P
       getDestConnection(localContext)
         .receiveEdits(
           localContext.getEdits(), 
-          localContext.getLocalShadowVersion());
+          localContext.getRemoteShadowVersion());
     } catch (PatchFailedException e) {
       logger.error("Sending edits failed.", e);
     }

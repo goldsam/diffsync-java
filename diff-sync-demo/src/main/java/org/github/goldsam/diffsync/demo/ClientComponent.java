@@ -26,6 +26,8 @@ public class ClientComponent extends JPanel implements ClientListener<String, St
   private final JTextArea textArea = new JTextArea();
   private final Client<String, String> client;
       
+  private boolean updating = false;
+   
   public ClientComponent(Client<String, String> client) {
     super(new BorderLayout());
     
@@ -52,6 +54,10 @@ public class ClientComponent extends JPanel implements ClientListener<String, St
       }
 
       private void handleChange(DocumentEvent e) {
+        if (updating) {
+          return;
+        }
+        
         Document document = e.getDocument();
         String documentText;
         try {
@@ -66,15 +72,22 @@ public class ClientComponent extends JPanel implements ClientListener<String, St
 
   @Override
   public void onDocumentUpdated(String document, long localVersion) {
-    SwingUtilities.invokeLater(() -> {
-      textArea.setText(document);
-    });      
+    updateTextArea(document);      
   }
 
   @Override
-  public void onEditsProcessed(String document, List<Edit<String>> edits, long remoteVersion) {
+  public void onEditProcessed(String document, Edit<String> edit, long remoteVersion) {
+    updateTextArea(document);
+  }
+  
+  private void updateTextArea(String document) {
     SwingUtilities.invokeLater(() -> {
-      textArea.setText(document);
+      updating = true;
+      try {
+        textArea.setText(document);
+      } finally {
+        updating = false;
+      }
     });
   }
 }

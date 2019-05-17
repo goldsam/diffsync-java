@@ -97,12 +97,12 @@
       <version>1.6.1</version>
       <scope>test</scope>
       <!-- this avoids affecting your version of Groovy/Spock -->
-      <exclusions>
+<!--      <exclusions>
         <exclusion>
           <groupId>*</groupId>
           <artifactId>*</artifactId>
         </exclusion>
-      </exclusions>
+      </exclusions>-->
     </dependency>
     
     <dependency>
@@ -110,9 +110,16 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.2.3</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy-all</artifactId>
-      <version>2.4.5</version>
+      <version>2.4.15</version>
     </dependency>
   </dependencies>
   
